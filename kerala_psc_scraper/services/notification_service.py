@@ -1,15 +1,14 @@
-from typing import List, Optional
+from typing import List
 
 from loguru import logger
 from sqlalchemy.orm import Session
 
 from kerala_psc_scraper.database.repository import JobNotificationRepository
 from kerala_psc_scraper.models.job_notification import JobNotification
-from kerala_psc_scraper.parser.pdf_parser import parse_pdf
+from kerala_psc_scraper.parser.pdf_parser import parse_pdf_from_url
 from kerala_psc_scraper.scraper import NotificationJob
 from kerala_psc_scraper.scraper.notification_list_scraper import scrape_notification_list
 from kerala_psc_scraper.scraper.notification_page_scraper import scrape_notification_page
-from kerala_psc_scraper.scraper.pdf_downloader import download_pdf
 
 
 def process_all_notifications(session: Session) -> None:
@@ -42,22 +41,15 @@ def _process_job(job: NotificationJob, repo: JobNotificationRepository) -> None:
         logger.info(f"Skipping existing record: category_no={job.category_no}")
         return
 
-    pdf_path: Optional[str] = None
     parsed: dict = {}
 
-    # Step 3: Download PDF
+    # Step 3: Parse PDF directly from URL in memory (no local file write)
     if job.pdf_url:
-        pdf_path = download_pdf(job.pdf_url, job.category_no)
+        parsed = parse_pdf_from_url(job.pdf_url)
     else:
         logger.warning(f"No PDF URL for category_no={job.category_no}")
 
-    # Step 4: Parse PDF
-    if pdf_path:
-        parsed = parse_pdf(pdf_path)
-    else:
-        logger.warning(f"No PDF available for parsing: category_no={job.category_no}")
-
-    # Step 5: Build and save the record
+    # Step 4: Build and save the record
     notification = JobNotification(
         title=job.title or parsed.get("post_name"),
         category_no=parsed.get("category_no") or job.category_no,
