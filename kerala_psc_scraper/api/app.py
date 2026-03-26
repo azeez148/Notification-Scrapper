@@ -1,5 +1,6 @@
 import time
 from collections import defaultdict
+from contextlib import asynccontextmanager
 
 import jwt
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
@@ -13,8 +14,21 @@ from kerala_psc_scraper.config.auth_settings import FORGOT_RATE_LIMIT_PER_HOUR, 
 from kerala_psc_scraper.database.db import get_db, init_db
 from kerala_psc_scraper.services.auth_service import AuthError, AuthService
 
-app = FastAPI(title="Notification Scrapper Auth API", version="1.0.0")
 _rate_store: dict[str, list[float]] = defaultdict(list)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_db()
+    db = next(get_db())
+    try:
+        AuthService(db).seed_roles()
+    finally:
+        db.close()
+    yield
+
+
+app = FastAPI(title="Notification Scraper Auth API", version="1.0.0", lifespan=lifespan)
 
 
 class RegisterRequest(BaseModel):
@@ -84,7 +98,10 @@ def _apply_rate_limit(key: str, limit: int, window_seconds: int) -> None:
     now = time.time()
     bucket = [ts for ts in _rate_store[key] if ts > now - window_seconds]
     if len(bucket) >= limit:
-        raise HTTPException(status_code=429, detail="RATE_LIMIT_EXCEEDED")
+        raise HTTPException(
+            status_code=429,
+            detail={"code": "RATE_LIMIT_EXCEEDED", "message": "Too many requests"},
+        )
     bucket.append(now)
     _rate_store[key] = bucket
 
@@ -100,17 +117,10 @@ def get_current_user_payload(authorization: str | None = Header(default=None)) -
     try:
         return decode_access_token(token)
     except jwt.InvalidTokenError as exc:
-        raise HTTPException(status_code=401, detail="INVALID_ACCESS_TOKEN") from exc
-
-
-@app.on_event("startup")
-def startup() -> None:
-    init_db()
-    db = next(get_db())
-    try:
-        AuthService(db).seed_roles()
-    finally:
-        db.close()
+        raise HTTPException(
+            status_code=401,
+            detail={"code": "INVALID_ACCESS_TOKEN", "message": "Invalid or expired access token"},
+        ) from exc
 
 
 @app.post("/api/v1/auth/register", status_code=201)

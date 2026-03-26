@@ -1,6 +1,6 @@
-from sqlalchemy import create_engine
 from collections.abc import Generator
 
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
 from kerala_psc_scraper.config.settings import DATABASE_URL

@@ -10,6 +10,8 @@ from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
 from kerala_psc_scraper.config.auth_settings import (
+    MAX_PASSWORD_LENGTH,
+    MIN_PASSWORD_LENGTH,
     JWT_ACCESS_SECRET,
     JWT_ACCESS_TTL_SECONDS,
     JWT_ALGORITHM,
@@ -23,7 +25,7 @@ _password_hasher = PasswordHasher()
 
 
 def validate_password_strength(password: str) -> bool:
-    if len(password) < 12 or len(password) > 128:
+    if len(password) < MIN_PASSWORD_LENGTH or len(password) > MAX_PASSWORD_LENGTH:
         return False
     checks = [r"[A-Z]", r"[a-z]", r"\d", r"[^A-Za-z0-9]"]
     return all(re.search(pattern, password) for pattern in checks)

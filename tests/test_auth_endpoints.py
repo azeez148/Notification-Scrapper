@@ -2,24 +2,29 @@ import os
 import unittest
 from pathlib import Path
 
-os.environ["DATABASE_URL"] = "sqlite+pysqlite:////tmp/notification_scrapper_auth_test.db"
-
-from fastapi.testclient import TestClient
-
-from kerala_psc_scraper.api.app import app, _rate_store
-from kerala_psc_scraper.database.db import SessionLocal, engine
-from kerala_psc_scraper.models.job_notification import Base
-from kerala_psc_scraper.services.auth_service import AuthService
+# Absolute sqlite path intentionally uses four slashes after scheme.
+os.environ["DATABASE_URL"] = "sqlite+pysqlite:////tmp/notification_scraper_auth_test.db"
+os.environ.setdefault("JWT_ACCESS_SECRET", "a" * 40)
+os.environ.setdefault("JWT_REFRESH_SECRET", "b" * 40)
 
 
 class TestAuthEndpoints(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        test_db = Path("/tmp/notification_scrapper_auth_test.db")
+        from fastapi.testclient import TestClient
+
+        from kerala_psc_scraper.api.app import app, _rate_store
+        from kerala_psc_scraper.database.db import SessionLocal, engine
+        from kerala_psc_scraper.models.job_notification import Base
+        from kerala_psc_scraper.services.auth_service import AuthService
+
+        cls._rate_store = _rate_store
+        cls._session_local = SessionLocal
+        test_db = Path("/tmp/notification_scraper_auth_test.db")
         if test_db.exists():
             test_db.unlink()
         Base.metadata.create_all(bind=engine)
-        db = SessionLocal()
+        db = cls._session_local()
         try:
             AuthService(db).seed_roles()
         finally:
@@ -27,7 +32,7 @@ class TestAuthEndpoints(unittest.TestCase):
         cls.client = TestClient(app)
 
     def setUp(self):
-        _rate_store.clear()
+        self._rate_store.clear()
 
     def test_register_login_and_profile(self):
         register_response = self.client.post(
@@ -73,7 +78,9 @@ class TestAuthEndpoints(unittest.TestCase):
         )
         self.assertEqual(forgot_response.status_code, 202)
 
-        db = SessionLocal()
+        from kerala_psc_scraper.services.auth_service import AuthService
+
+        db = self._session_local()
         try:
             service = AuthService(db)
             user = service.users.get_by_email("resetuser@example.com")
@@ -113,7 +120,9 @@ class TestAuthEndpoints(unittest.TestCase):
             },
         )
 
-        db = SessionLocal()
+        from kerala_psc_scraper.services.auth_service import AuthService
+
+        db = self._session_local()
         try:
             service = AuthService(db)
             admin_user = service.users.get_by_email("admin@example.com")

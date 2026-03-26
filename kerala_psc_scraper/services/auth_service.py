@@ -53,13 +53,14 @@ class AuthService:
             raise AuthError("EMAIL_ALREADY_EXISTS", 409, "Email already exists")
 
     def login(self, email: str, password: str, user_agent: str | None, ip_address: str | None) -> dict:
+        now = datetime.now(timezone.utc)
         user = self.users.get_by_email(email.lower().strip())
         if not user or not verify_password(password, user.password_hash):
             if user:
                 self.users.increment_failed_login(user)
             raise AuthError("INVALID_CREDENTIALS", 401, "Email or password is incorrect")
 
-        if user.locked_until and user.locked_until > datetime.now(timezone.utc):
+        if user.locked_until and user.locked_until > now:
             raise AuthError("ACCOUNT_LOCKED", 423, "Account is temporarily locked")
 
         self.users.reset_failed_login(user)

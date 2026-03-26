@@ -1,4 +1,8 @@
+import os
 import unittest
+
+os.environ.setdefault("JWT_ACCESS_SECRET", "a" * 40)
+os.environ.setdefault("JWT_REFRESH_SECRET", "b" * 40)
 
 from kerala_psc_scraper.auth.security import (
     create_access_token,

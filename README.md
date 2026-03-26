@@ -528,7 +528,7 @@ Refresh token claims:
 ```yaml
 openapi: 3.0.3
 info:
-  title: Notification Scrapper Auth API
+  title: Notification Scraper Auth API
   version: 1.0.0
 servers:
   - url: /api/v1

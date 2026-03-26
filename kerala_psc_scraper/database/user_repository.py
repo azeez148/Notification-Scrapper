@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from kerala_psc_scraper.config.auth_settings import ACCOUNT_LOCK_DURATION_MINUTES, ACCOUNT_LOCK_THRESHOLD
 from kerala_psc_scraper.models.auth_models import Role, User
 
 
@@ -37,8 +38,8 @@ class UserRepository:
 
     def increment_failed_login(self, user: User) -> None:
         user.failed_login_attempts += 1
-        if user.failed_login_attempts >= 5:
-            user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=15)
+        if user.failed_login_attempts >= ACCOUNT_LOCK_THRESHOLD:
+            user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=ACCOUNT_LOCK_DURATION_MINUTES)
         self.session.commit()
 
     def reset_failed_login(self, user: User) -> None:
