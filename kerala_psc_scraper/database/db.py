@@ -1,8 +1,11 @@
+from collections.abc import Generator
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
 from kerala_psc_scraper.config.settings import DATABASE_URL
 from kerala_psc_scraper.models.job_notification import Base
+from kerala_psc_scraper.models import auth_models  # noqa: F401
 from kerala_psc_scraper.models import normalized_notification  # noqa: F401
 
 engine = create_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
@@ -15,3 +18,11 @@ def init_db() -> None:
 
 def get_session() -> Session:
     return SessionLocal()
+
+
+def get_db() -> Generator[Session, None, None]:
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
